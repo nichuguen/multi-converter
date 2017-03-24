@@ -1,0 +1,16 @@
+version: '2.1'
+services:
+
+### Application Code Container
+
+  converter_application:
+      container_name: converter_app
+      restart: always
+      build: ./application
+      image: converter/converter_app
+      volumes:
+          - ./application:/app
+      ports:
+          - "127.0.0.1:8001:5000"
+      env_file:
+          - ./application/.env
