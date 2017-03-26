@@ -110,58 +110,88 @@
         .parents('.result-panel')
         .attr('data-id');
       var step = {
-        step: index,
+        step: index+1,
         ecodeId: parseInt(ecodeId),
       };
       pipeline.push(step);
     });
-    console.log(pipeline);
-
-    // TODO
-    // - get the original format
-    // - get the input value
-    // - code with input and format
-    // - update res array
-    // - if pipeline > 0
-    //   - for each step
-    //     - code with the previous output and current format
-    //     - update res array
-    // - update result UI with res array
+    
+    var input = $('#base-code').val(),
+        format = $('input[name=input-format]:checked').val()
+        results = [];
 
     $.ajax(
         '/static/json/results.json?' + $('#convert-form').serialize(),
         { dataType: 'json' }
-      ).done(function(results) {
-        $('#alert-content')
-          .loadTemplate("/static/scripts/templates/message.html", {
-            classes: 'alert alert-success',
-            title: 'Converted!',
-            message: 'input converted correctly!'
-          });
-        $('#results-content')
-          .empty()
-          .loadTemplate("/static/scripts/templates/results.html", results, {
-            success: function() {
-              bindEventOnResult();
-            }
-          });
-        $('#results-header').show();
-        $('#droppable-result').show();
-        $('html').animate({
-          scrollTop: $("#results-header").offset().top
-        }, 500, 'swing', function() {
-          $('#results-content textarea')[0].focus();
-        });
+      ).done(function(_res) {
+        results = _res;
+        if (pipeline.length > 0) {
+          nextStep(1, _res, pipeline);
+        } else {
+          updateResultsUI(results);
+        }
+      }).error(displayErrorMessage).always(function() {
+        if (pipeline.length == 0) {
+          $('#convert-submit').prop('disabled', false);
+        }
+      });
+  }
 
-      }).error(function(jqXHR, textStatus, errorThrown) {
-        $('#alert-content')
-          .loadTemplate("/static/scripts/templates/message.html", {
-            classes: 'alert alert-danger',
-            title: 'Error!',
-            message: errorThrown
-          });
-      }).always(function() {
-        $('#convert-submit').prop('disabled', false);
+  // Perform the next step in the pipeline
+  function nextStep(index, _res, pipeline) {
+    var currentStep = pipeline.splice(0,1)[0],
+        format = currentStep.ecodeId,
+        input = $.grep(_res, function(e) {
+          return e.id == format; 
+        })[0].content;
+    $($('#piping-result textarea').get(index-1)).val(input);
+    $.ajax(
+        '/static/json/results.json?' + format + '=' + encodeURI(input),
+        { dataType: 'json' }
+      ).done(function(_newRes) {
+        if (pipeline.length > 0) {
+          nextStep(index+1, _newRes, pipeline);
+        } else {
+          updateResultsUI(_newRes);
+        }
+      }).error(displayErrorMessage).always(function() {
+        if (pipeline.length == 0) {
+          $('#convert-submit').prop('disabled', false);
+        }
+      });
+  }
+
+  // Update the result UI
+  function updateResultsUI(results) {
+    $('#alert-content')
+      .loadTemplate("/static/scripts/templates/message.html", {
+        classes: 'alert alert-success',
+        title: 'Converted!',
+        message: 'input converted correctly!'
+      });
+    $('#results-content')
+      .empty()
+      .loadTemplate("/static/scripts/templates/results.html", results, {
+        success: function() {
+          bindEventOnResult();
+        }
+      });
+    $('#results-header').show();
+    $('#droppable-result').show();
+    $('html').animate({
+      scrollTop: $("#results-header").offset().top
+    }, 500, 'swing', function() {
+      $('#results-content textarea')[0].focus();
+    });
+  }
+
+  // Display an error message, used in Ajax callback
+  function displayErrorMessage(jqXHR, textStatus, errorThrown) {
+    $('#alert-content')
+      .loadTemplate("/static/scripts/templates/message.html", {
+        classes: 'alert alert-danger',
+        title: 'Error!',
+        message: errorThrown
       });
   }
 
