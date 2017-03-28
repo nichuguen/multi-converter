@@ -6,12 +6,12 @@
    * Relative URL for getting this list of 
    * valide input formats
    */
-  var GET_TYPES_URL = '/static/json/types.json';
+  var GET_TYPES_URL = '/api/types';
 
   /**
    * Relative URL to transcode data
    */
-  var GET_RESULTS_URL = '/static/json/results.json';
+  var GET_RESULTS_URL = '/api/encode';
 
   /**
    * Contains the state if data has been already
@@ -156,7 +156,7 @@
         results = [];
 
     $.ajax(
-        GET_RESULTS_URL + '?' + $('#convert-form').serialize(),
+        GET_RESULTS_URL + '?format=' + format + '&content=' + input,
         { dataType: 'json' }
       ).done(function(_res) {
         results = _res;
@@ -181,7 +181,7 @@
         })[0].content;
     $($('#piping-result textarea').get(index-1)).val(input);
     $.ajax(
-        GET_RESULTS_URL + '?' + format + '=' + encodeURI(input),
+        GET_RESULTS_URL + '?format=' + format + '&content=' + input,
         { dataType: 'json' }
       ).done(function(_newRes) {
         if (pipeline.length > 0) {
