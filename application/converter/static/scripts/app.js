@@ -1,16 +1,49 @@
 /**
  *  MAIN APPLICATION
  */
-(function($) {
+(function($) { $(document).ready(function() {
+  /**
+   * Relative URL for getting this list of 
+   * valide input formats
+   */
+  var GET_TYPES_URL = '/static/json/types.json';
+
+  /**
+   * Relative URL to transcode data
+   */
+  var GET_RESULTS_URL = '/static/json/results.json';
+
+  /**
+   * Contains the state if data has been already
+   * transcoded
+   */
+  var firstLoad = false;
+
+  /**
+   * Define if the scroll animation must be
+   * performed when data is retreived
+   */
+  var animateOnResult = true;
+
+  /**
+   * Contains the state if the user has the focus
+   * on the textarea #base-code
+   */
   var inFocus = true;
   
   // Set the focus on textarea
   $('#base-code').focus();
-  setTimeout(function () { $('#base-code').focus(); }, 1);
 
   // Track the focus state
   $('#base-code').on('focus', function() { inFocus = true; });
   $('#base-code').on('focusout', function() { inFocus = false; });
+
+  function onChangeEvent() {
+    if (firstLoad) {
+      $('#convert-submit').click();
+    }
+  }
+  $('#base-code').on('change', onChangeEvent);
 
   // Droppable area
   $('#droppable-result').droppable({
@@ -58,6 +91,7 @@
     if (e.which == 224 || e.which == 17) {
       cmd = true;
     } else if (e.which == 86 && !inFocus && !cmd) { // V
+      animateOnResult = true;
       $('#convert-submit').click();
     } else if (e.which == 67 && !inFocus && !cmd) { // C
       $('#reset-btn').click();
@@ -74,30 +108,31 @@
   $('#droppable-result').hide();
   // Get input valid formats
   $.getJSON(
-    '/static/json/types.json',
+    GET_TYPES_URL,
     {},
     function(formats, textStatus, jqXHR) {
       $('#formats-controls')
-        .loadTemplate("/static/scripts/templates/label.html", formats);
+        .loadTemplate("/static/scripts/templates/label.html", formats, {
+          success: function() {
+            $("input[name='input-format']").on('change', onChangeEvent);
+          }
+        });
     });
 
   $('#convert-form').on('submit', function(e) {
     e.preventDefault();
     $('#convert-submit').prop('disabled', true);
-    $('input[name=input-format]').prop('disabled', true);
-    $('#base-code').attr('disabled','disabled');
     reloadPipeline();
   });
 
   $('#reset-btn').on('click', function() {
+    firstLoad = false;
     $('#base-code').focus();
     $('#alert-content').empty();
     $('#piping-result').empty();
     $('#results-content').empty();
     $('#results-header').hide();
     $('#droppable-result').hide();
-    $('input[name=input-format]').prop('disabled', false);
-    $('#base-code').removeAttr('disabled');
     setTimeout(function () { $('#convert-form')[0].reset(); }, 1);
   });
 
@@ -121,7 +156,7 @@
         results = [];
 
     $.ajax(
-        '/static/json/results.json?' + $('#convert-form').serialize(),
+        GET_RESULTS_URL + '?' + $('#convert-form').serialize(),
         { dataType: 'json' }
       ).done(function(_res) {
         results = _res;
@@ -146,7 +181,7 @@
         })[0].content;
     $($('#piping-result textarea').get(index-1)).val(input);
     $.ajax(
-        '/static/json/results.json?' + format + '=' + encodeURI(input),
+        GET_RESULTS_URL + '?' + format + '=' + encodeURI(input),
         { dataType: 'json' }
       ).done(function(_newRes) {
         if (pipeline.length > 0) {
@@ -178,11 +213,15 @@
       });
     $('#results-header').show();
     $('#droppable-result').show();
-    $('html').animate({
-      scrollTop: $("#results-header").offset().top
-    }, 500, 'swing', function() {
-      $('#results-content textarea')[0].focus();
-    });
+    firstLoad = true;
+    if (animateOnResult) {
+      $('html').animate({
+        scrollTop: $("#results-header").offset().top
+      }, 500, 'swing', function() {
+        $('#results-content textarea')[0].focus();
+        animateOnResult = false;
+      });
+    }
   }
 
   // Display an error message, used in Ajax callback
@@ -222,4 +261,4 @@
     });
   }
 
-})(jQuery);
+})})(jQuery);
